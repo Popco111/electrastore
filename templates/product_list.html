@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+
+{% block title %}ElectraStore — Catalog{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-layout {
+        max-width: 1200px;
+        margin: 25px auto;
+        padding: 0 20px;
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 25px;
+    }
+    .sidebar {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        padding: 20px;
+        border-radius: 8px;
+        height: fit-content;
+        box-shadow: var(--shadow);
+    }
+    .filter-group {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .filter-group select, .filter-group input {
+        padding: 8px;
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        border-radius: 6px;
+    }
+    /* Исправленный блок заголовка каталога и кнопки */
+    .products-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 15px;
+    }
+    .products-header h2 {
+        margin: 0;
+    }
+    .products-header button {
+        width: auto !important;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 20px;
+    }
+    .product-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s;
+    }
+    .product-card:hover { transform: translateY(-3px); }
+    .product-image {
+        height: 160px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+    }
+    .product-image img { max-height: 100%; max-width: 100%; object-fit: contain; }
+    .product-info { padding: 15px; display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
+    .product-info h3 { margin: 0; font-size: 16px; }
+    .product-info h3 a { text-decoration: none; color: var(--text-color); }
+    .product-info h3 a:hover { color: var(--primary-color); }
+    .product-price { font-size: 18px; font-weight: bold; color: var(--primary-color); }
+    .product-seller { font-size: 12px; color: var(--subtext-color); }
+    .search-bar-inline { display: flex; gap: 8px; flex-grow: 1; max-width: 450px; margin-bottom: 25px; }
+    .search-bar-inline input {
+        width: 100%; padding: 8px 12px; background: var(--input-bg);
+        border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="main-layout" style="margin-top: 30px;">
+    <!-- Боковая панель фильтров -->
+    <aside class="sidebar">
+        <h3 id="filtersTitle" style="margin-top:0;">Фильтры</h3>
+        <div class="filter-group">
+            <label id="categoryLabel">Категория</label>
+            <select id="categorySelect" onchange="applyFilters()">
+                <option value="" id="allCategoriesOpt">Все категории</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label id="priceLabel">Цена (₽)</label>
+            <input type="number" id="minPrice" placeholder="От" onchange="applyFilters()">
+            <input type="number" id="maxPrice" placeholder="До" onchange="applyFilters()">
+        </div>
+    </aside>
+
+    <!-- Основной контент каталога -->
+    <section>
+        <div class="search-bar-inline">
+            <input type="text" id="searchInput" placeholder="Поиск товаров...">
+            <button class="control-btn" id="searchBtn" onclick="applyFilters()">Искать</button>
+        </div>
+
+        <div class="products-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+    <h2 id="catalogTitle" style="margin: 0;">Каталог товаров</h2>
+    <button id="addProductBtn" class="btn-success" style="display: none; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500;" onclick="openModal('addProductModal')">+ Добавить товар</button>
+</div>
+
+        <div id="productsGrid" class="products-grid">
+            <p id="loadingText">Загрузка товаров...</p>
+        </div>
+    </section>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Добавляем переводы для каталога в глобальный объект i18n из base.html
+    if (typeof i18n !== 'undefined') {
+        i18n.ru.filtersTitle = "Фильтры";
+        i18n.ru.categoryLabel = "Категория";
+        i18n.ru.allCategoriesOpt = "Все категории";
+        i18n.ru.priceLabel = "Цена (₽)";
+        i18n.ru.minPlaceholder = "От";
+        i18n.ru.maxPlaceholder = "До";
+        i18n.ru.catalogTitle = "Каталог товаров";
+        i18n.ru.searchPlaceholder = "Поиск товаров...";
+        i18n.ru.searchBtn = "Искать";
+        i18n.ru.addProductBtn = "+ Добавить товар";
+        i18n.ru.loadingText = "Загрузка товаров...";
+        i18n.ru.noProducts = "Товары не найдены.";
+
+        i18n.en.filtersTitle = "Filters";
+        i18n.en.categoryLabel = "Category";
+        i18n.en.allCategoriesOpt = "All categories";
+        i18n.en.priceLabel = "Price (₽)";
+        i18n.en.minPlaceholder = "From";
+        i18n.en.maxPlaceholder = "To";
+        i18n.en.catalogTitle = "Product Catalog";
+        i18n.en.searchPlaceholder = "Search products...";
+        i18n.en.searchBtn = "Search";
+        i18n.en.addProductBtn = "+ Add Product";
+        i18n.en.loadingText = "Loading products...";
+        i18n.en.noProducts = "No products found.";
+    }
+
+    // Переопределяем функцию applyLanguage, чтобы она обновляла и страницу каталога
+    const baseApplyLang = window.applyLanguage;
+    window.applyLanguage = function() {
+        if (typeof baseApplyLang === 'function') baseApplyLang();
+
+        const t = i18n[currentLang];
+        if (!t) return;
+
+        document.getElementById('filtersTitle').innerText = t.filtersTitle;
+        document.getElementById('categoryLabel').innerText = t.categoryLabel;
+        document.getElementById('allCategoriesOpt').innerText = t.allCategoriesOpt;
+        document.getElementById('priceLabel').innerText = t.priceLabel;
+        document.getElementById('minPrice').placeholder = t.minPlaceholder;
+        document.getElementById('maxPrice').placeholder = t.maxPlaceholder;
+        document.getElementById('catalogTitle').innerText = t.catalogTitle;
+        document.getElementById('searchInput').placeholder = t.searchPlaceholder;
+        document.getElementById('searchBtn').innerText = t.searchBtn;
+
+        const addBtn = document.getElementById('addProductBtn');
+        if (addBtn) addBtn.innerText = t.addProductBtn;
+
+        const loadTxt = document.getElementById('loadingText');
+        if (loadTxt) loadTxt.innerText = t.loadingText;
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCategories();
+        loadProducts();
+        if (typeof applyLanguage === 'function') applyLanguage();
+    });
+
+    async function loadCategories() {
+        try {
+            const res = await fetch(`${API_URL}/categories/`);
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : (data.results || []);
+            const catSelect = document.getElementById('categorySelect');
+            const pCatSelect = document.getElementById('pCategory');
+
+            list.forEach(c => {
+                catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                if (pCatSelect) pCatSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+        } catch (e) {
+            console.error("Ошибка загрузки категорий:", e);
+        }
+    }
+
+    async function loadProducts(params = '') {
+        try {
+            const t = i18n[currentLang];
+            const res = await fetch(`${API_URL}/products/?${params}`);
+            const data = await res.json();
+            const products = Array.isArray(data) ? data : (data.results || []);
+            const grid = document.getElementById('productsGrid');
+
+            if (!products.length) {
+                grid.innerHTML = `<p>${t.noProducts}</p>`;
+                return;
+            }
+
+            const defaultImg = 'https://via.placeholder.com/250x180?text=No+Photo';
+
+            grid.innerHTML = products.map(p => {
+                let imgSrc = p.image_url || p.image;
+                if (!imgSrc || !imgSrc.startsWith('http')) imgSrc = defaultImg;
+                const stock = parseInt(p.stock, 10);
+                const isOutOfStock = isNaN(stock) || stock <= 0;
+
+                const inStockText = currentLang === 'en' ? `In stock: ${stock}` : `В наличии: ${stock}`;
+                const outOfStockText = currentLang === 'en' ? 'Out of stock' : 'Нет в наличии';
+                const buyBtnText = currentLang === 'en' ? 'Add to cart' : 'В корзину';
+                const soldOutText = currentLang === 'en' ? 'Sold out' : 'Распродано';
+
+                return `
+                    <div class="product-card">
+                        <div class="product-image">
+                            <img src="${imgSrc}" alt="${p.title}" onerror="this.src='${defaultImg}'">
+                        </div>
+                        <div class="product-info">
+                            <h3><a href="/product/${p.id}/">${p.title}</a></h3>
+                            <div class="product-price">${Number(p.price || 0).toLocaleString()} ₽</div>
+                            <div class="product-seller">
+                                ${isOutOfStock 
+                                    ? `<span style="color: var(--danger-color); font-weight: bold;">${outOfStockText}</span>` 
+                                    : `<span style="color: var(--success-color);">${inStockText}</span>`}
+                            </div>
+                            <button class="btn-primary" 
+                                    style="margin-top:10px; width:100%; ${isOutOfStock ? 'opacity:0.5; cursor:not-allowed;' : ''}" 
+                                    onclick="addToCart(${p.id})" 
+                                    ${isOutOfStock ? 'disabled' : ''}>
+                                ${isOutOfStock ? soldOutText : buyBtnText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (e) {
+            console.error("Ошибка загрузки товаров:", e);
+        }
+    }
+
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value;
+        const category = document.getElementById('categorySelect').value;
+        const minPrice = document.getElementById('minPrice').value;
+        const maxPrice = document.getElementById('maxPrice').value;
+
+        let query = [];
+        if (search) query.push(`search=${encodeURIComponent(search)}`);
+        if (category) query.push(`category=${encodeURIComponent(category)}`);
+        if (minPrice) query.push(`min_price=${encodeURIComponent(minPrice)}`);
+        if (maxPrice) query.push(`max_price=${encodeURIComponent(maxPrice)}`);
+
+        loadProducts(query.join('&'));
+    }
+</script>
+{% endblock %}

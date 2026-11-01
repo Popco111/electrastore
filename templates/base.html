@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ElectraStore — Интернет-магазин электроники{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="shortcut icon" href="#">
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+            --text-color: #1a202c;
+            --subtext-color: #718096;
+            --border-color: #e2e8f0;
+            --primary-color: #3182ce;
+            --primary-hover: #2b6cb0;
+            --success-color: #38a169;
+            --danger-color: #e53e3e;
+            --shadow: 0 4px 12px rgba(0,0,0,0.06);
+            --header-bg: #ffffff;
+            --input-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a202c;
+            --card-bg: #2d3748;
+            --text-color: #f7fafc;
+            --subtext-color: #a0aec0;
+            --border-color: #4a5568;
+            --primary-color: #4299e1;
+            --primary-hover: #3182ce;
+            --success-color: #48bb78;
+            --danger-color: #fc8181;
+            --shadow: 0 4px 12px rgba(0,0,0,0.3);
+            --header-bg: #2d3748;
+            --input-bg: #1a202c;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .control-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+
+        .control-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary:hover { background-color: var(--primary-hover); }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* Кнопка «Добавить товар» не должна растягиваться */
+        #addProductBtn {
+            width: auto !important;
+            flex: 0 0 auto !important;
+            white-space: nowrap;
+        }
+        .products-header { gap: 15px; }
+        .products-header h2 { margin: 0; white-space: nowrap; }
+
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 25px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .modal-content input, .modal-content select, .modal-content textarea {
+            padding: 10px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-radius: 6px;
+        }
+
+        /* Тосты (уведомления) */
+        .toast-container {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            min-width: 280px;
+            padding: 14px 20px;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-error { background-color: var(--danger-color); }
+        .toast-success { background-color: var(--success-color); }
+
+        @keyframes slideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Общий Хедер -->
+    <header class="header">
+    <div class="header-container">
+        <a href="/" class="logo">⚡ ElectraStore</a>
+
+        <!-- Уникальное место слева для страницы корзины (если нужно) -->
+        <div id="headerLeftSlot"></div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button class="control-btn" id="langBtn" onclick="toggleLanguage()">
+                🌐 <span id="langText">RU</span>
+            </button>
+            <button class="control-btn" id="themeBtn" onclick="toggleTheme()">
+                🌙 <span id="themeText">Тёмная</span>
+            </button>
+
+            <!-- Кнопка корзины (скрывается на странице корзины через класс hide-on-cart) -->
+            <a href="/cart/" class="control-btn hide-on-cart" id="cartBtn" style="flex-direction: row; gap: 6px; white-space: nowrap;">
+                🛒 <span id="cartBtnText" data-i18n="cartBtnText">Корзина</span>
+            </a>
+
+            <div id="authBlock" style="display: flex; gap: 8px; align-items: center;">
+                <button class="control-btn" onclick="openModal('loginModal')" id="loginHeaderBtn">Войти</button>
+                <button class="btn-primary" onclick="openModal('registerModal')" id="regHeaderBtn">Регистрация</button>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <!-- Уникальный контент страниц вставляется сюда -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Общие модальные окна -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h3 data-i18n="loginTitle">Вход в аккаунт</h3>
+            <input type="text" id="loginUsername" data-i18n-placeholder="usernamePh" placeholder="Имя пользователя">
+            <input type="password" id="loginPassword" data-i18n-placeholder="passwordPh" placeholder="Пароль">
+            <button class="btn-primary" onclick="login()" data-i18n="loginBtn">Войти</button>
+            <button class="control-btn" onclick="closeModal('loginModal')" data-i18n="cancel">Отмена</button>
+        </div>
+    </div>
+
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <h3 data-i18n="registerTitle">Регистрация</h3>
+            <input type="text" id="regUsername" data-i18n-placeholder="usernamePh" placeholder="Имя пользователя">
+            <input type="email" id="regEmail" placeholder="Email">
+            <input type="password" id="regPassword" data-i18n-placeholder="passwordPh" placeholder="Пароль">
+            <select id="regRole">
+                <option value="seller" data-i18n="sellerTitle">Продавец</option>
+                <option value="buyer" data-i18n="buyerTitle">Покупатель</option>
+            </select>
+            <button class="btn-primary" onclick="register(event)" data-i18n="registerSubmit">Зарегистрироваться</button>
+            <button class="control-btn" onclick="closeModal('registerModal')" data-i18n="cancel">Отмена</button>
+        </div>
+    </div>
+
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <h3 data-i18n="addProductTitle">Добавить товар</h3>
+            <input type="text" id="pTitle" data-i18n-placeholder="pTitlePh" placeholder="Название товара">
+            <select id="pCategory"></select>
+            <input type="number" id="pPrice" data-i18n-placeholder="pPricePh" placeholder="Цена">
+            <input type="number" id="pStock" data-i18n-placeholder="pStockPh" placeholder="Количество на складе">
+            <input type="url" id="pImageUrl" data-i18n-placeholder="pImagePh" placeholder="Ссылка на картинку (https://...)">
+            <textarea id="pDesc" data-i18n-placeholder="pDescPh" placeholder="Описание"></textarea>
+            <button class="btn-primary" onclick="createProduct()" data-i18n="create">Создать</button>
+            <button class="control-btn" onclick="closeModal('addProductModal')" data-i18n="cancel">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Общие скрипты авторизации и интерфейса -->
+<script>
+    const API_URL = '/api';
+    let currentLang = localStorage.getItem('lang') || 'ru';
+    let currentTheme = localStorage.getItem('theme') || 'light';
+
+    // Словарь переводов. Страницы дополняют его через Object.assign(i18n.ru, {...}) / Object.assign(i18n.en, {...})
+    const i18n = {
+        ru: {
+            cartBtnText: "Корзина", themeDark: "Тёмная", themeLight: "Светлая",
+            loginBtn: "Войти", registerBtn: "Регистрация", logout: "Выйти",
+            sellerTitle: "Продавец", buyerTitle: "Покупатель", backHome: "← На главную",
+            loginTitle: "Вход в аккаунт", usernamePh: "Имя пользователя", passwordPh: "Пароль",
+            cancel: "Отмена", registerTitle: "Регистрация", registerSubmit: "Зарегистрироваться",
+            addProductTitle: "Добавить товар", pTitlePh: "Название товара", pPricePh: "Цена",
+            pStockPh: "Количество на складе", pImagePh: "Ссылка на картинку (https://...)",
+            pDescPh: "Описание", create: "Создать",
+            errLogin: "Неверное имя пользователя или пароль", errConn: "Ошибка соединения",
+            errRegister: "Ошибка регистрации", errNetwork: "Ошибка сети",
+            needSeller: "Авторизуйтесь как продавец!", productCreated: "Товар успешно создан!",
+            productCreateErr: "Ошибка при создании товара", addedToCart: "Товар добавлен в корзину! 🛒"
+        },
+        en: {
+            cartBtnText: "Cart", themeDark: "Dark", themeLight: "Light",
+            loginBtn: "Sign In", registerBtn: "Register", logout: "Logout",
+            sellerTitle: "Seller", buyerTitle: "Buyer", backHome: "← Back to home",
+            loginTitle: "Sign in to your account", usernamePh: "Username", passwordPh: "Password",
+            cancel: "Cancel", registerTitle: "Registration", registerSubmit: "Sign up",
+            addProductTitle: "Add product", pTitlePh: "Product name", pPricePh: "Price",
+            pStockPh: "Stock quantity", pImagePh: "Image URL (https://...)",
+            pDescPh: "Description", create: "Create",
+            errLogin: "Invalid username or password", errConn: "Connection error",
+            errRegister: "Registration error", errNetwork: "Network error",
+            needSeller: "Please sign in as a seller!", productCreated: "Product created successfully!",
+            productCreateErr: "Failed to create product", addedToCart: "Added to cart! 🛒"
+        }
+    };
+
+    // Получить перевод по ключу (если нет в текущем языке — берём русский)
+    function t(key) {
+        return (i18n[currentLang] && i18n[currentLang][key]) || i18n.ru[key] || key;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        applyLanguage();
+        updateThemeButton();
+        checkAuth();
+    });
+
+    function toggleTheme() {
+        currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        localStorage.setItem('theme', currentTheme);
+        updateThemeButton();
+    }
+
+    function updateThemeButton() {
+        const themeText = document.getElementById('themeText');
+        const themeBtn = document.getElementById('themeBtn');
+        if (currentTheme === 'dark') {
+            themeText.innerText = t('themeLight');
+            themeBtn.firstChild.textContent = '☀️ ';
+        } else {
+            themeText.innerText = t('themeDark');
+            themeBtn.firstChild.textContent = '🌙 ';
+        }
+    }
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'ru' ? 'en' : 'ru';
+        localStorage.setItem('lang', currentLang);
+        applyLanguage();
+        updateThemeButton();
+        checkAuth();
+        // страницы могут перерисовать динамический контент
+        if (typeof onLanguageChange === 'function') onLanguageChange();
+    }
+
+    // Переводит все элементы с data-i18n / data-i18n-placeholder и заголовок страницы
+    function applyLanguage() {
+        document.documentElement.lang = currentLang;
+        document.getElementById('langText').innerText = currentLang.toUpperCase();
+        document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+        if (window.pageTitleKey) document.title = t(window.pageTitleKey) + ' — ElectraStore';
+    }
+
+    function showToast(message, type = 'error') {
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerText = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function checkAuth() {
+        const username = localStorage.getItem('username');
+        const role = localStorage.getItem('role');
+        const authBlock = document.getElementById('authBlock');
+        const addProductBtn = document.getElementById('addProductBtn');
+
+        if (username) {
+            const roleTitle = (role === 'seller' || role === 'Продавец') ? t('sellerTitle') : t('buyerTitle');
+            authBlock.innerHTML = `
+                <span style="font-size:13px; font-weight:500;">👤 ${username} (${roleTitle})</span>
+                <button class="control-btn" style="min-width: 80px;" onclick="logout()">${t('logout')}</button>
+            `;
+            if (addProductBtn) {
+                addProductBtn.style.display = (role === 'seller' || role === 'Продавец') ? 'block' : 'none';
+            }
+        } else {
+            authBlock.innerHTML = `
+                <button class="control-btn" onclick="openModal('loginModal')" id="loginHeaderBtn">${t('loginBtn')}</button>
+                <button class="btn-primary" onclick="openModal('registerModal')" id="regHeaderBtn">${t('registerBtn')}</button>
+            `;
+            if (addProductBtn) addProductBtn.style.display = 'none';
+        }
+    }
+
+    function logout() {
+        // удаляем только данные авторизации, чтобы не сбрасывать язык и тему
+        ['access', 'username', 'role'].forEach(k => localStorage.removeItem(k));
+        location.reload();
+    }
+
+    async function login() {
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        try {
+            const res = await fetch(`${API_URL}/users/login/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('access', data.access);
+                localStorage.setItem('username', username);
+                localStorage.setItem('role', data.role || 'buyer');
+                location.reload();
+            } else {
+                showToast(t('errLogin'), 'error');
+            }
+        } catch (e) {
+            showToast(t('errConn'), 'error');
+        }
+    }
+
+    async function register(event) {
+        if (event) event.preventDefault();
+        const username = document.getElementById('regUsername').value;
+        const email = document.getElementById('regEmail').value;
+        const password = document.getElementById('regPassword').value;
+        const role = document.getElementById('regRole').value;
+
+        try {
+            const response = await fetch(`${API_URL}/users/register/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password, role })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                localStorage.setItem('username', data.username || username);
+                localStorage.setItem('role', role);
+                location.reload();
+            } else {
+                showToast(t('errRegister'), 'error');
+            }
+        } catch (error) {
+            showToast(t('errNetwork'), 'error');
+        }
+    }
+
+    async function createProduct() {
+        const token = localStorage.getItem('access');
+        if (!token) {
+            showToast(t('needSeller'), 'error');
+            return;
+        }
+        const title = document.getElementById('pTitle').value;
+        const category = document.getElementById('pCategory').value;
+        const price = document.getElementById('pPrice').value;
+        const stock = document.getElementById('pStock').value;
+        const image_url = document.getElementById('pImageUrl').value;
+        const description = document.getElementById('pDesc').value;
+
+        try {
+            const response = await fetch(`${API_URL}/products/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    title,
+                    category: category ? parseInt(category) : null,
+                    price: parseFloat(price),
+                    stock: parseInt(stock),
+                    image_url: image_url || 'https://via.placeholder.com/250x180?text=No+Photo',
+                    description: description || ''
+                })
+            });
+            if (response.ok) {
+                showToast(t('productCreated'), 'success');
+                closeModal('addProductModal');
+                location.reload();
+            } else {
+                showToast(t('productCreateErr'), 'error');
+            }
+        } catch (e) {
+            showToast(t('errConn'), 'error');
+        }
+    }
+
+    function addToCart(productId) {
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const item = cart.find(i => i.id === productId);
+        if (item) {
+            item.quantity += 1;
+        } else {
+            cart.push({ id: productId, quantity: 1 });
+        }
+        localStorage.setItem('cart', JSON.stringify(cart));
+        showToast(t('addedToCart'), 'success');
+    }
+</script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

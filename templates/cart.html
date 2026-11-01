@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Корзина — ElectraStore{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Скрываем стандартную кнопку корзины в хедере на этой странице */
+    .hide-on-cart { display: none !important; }
+
+    .cart-layout { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+    .cart-card {
+        background: var(--card-bg); border: 1px solid var(--border-color);
+        padding: 25px; border-radius: 12px; box-shadow: var(--shadow);
+    }
+    .cart-item {
+        display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 1px solid var(--border-color); padding: 15px 0;
+    }
+    .cart-item:last-child { border-bottom: none; }
+    .btn-danger {
+        background-color: var(--danger-color); color: #fff; border: none;
+        padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .btn-danger:hover { opacity: 0.9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="cart-layout">
+    <!-- Кнопка назад слева сверху -->
+    <a href="/" class="control-btn" style="width: fit-content; margin-bottom: 20px;" data-i18n="backHome">← На главную</a>
+
+    <div class="cart-card">
+        <h1 style="margin-top: 0; font-size: 22px;" data-i18n="cartTitle">Ваша корзина товаров</h1>
+        
+        <div id="cartItemsList">
+            <p style="color: var(--subtext-color);" data-i18n="loadingCart">Загрузка товаров...</p>
+        </div>
+
+        <div id="cartTotal" style="font-size: 20px; font-weight: bold; margin-top: 20px; text-align: right;"></div>
+        
+        <button class="btn-primary" onclick="checkout()" id="checkoutBtn" style="display: none; width: 100%; margin-top: 20px; padding: 12px;" data-i18n="checkout">Оформить заказ</button>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.pageTitleKey = 'titleCart';
+
+    Object.assign(i18n.ru, {
+        titleCart: "Корзина", cartTitle: "Ваша корзина товаров", loadingCart: "Загрузка товаров...",
+        cartEmpty: "Ваша корзина пуста.", pcs: "шт.", remove: "Удалить", total: "Итого",
+        checkout: "Оформить заказ", orderDone: "Заказ успешно оформлен! Спасибо за покупку в ElectraStore."
+    });
+    Object.assign(i18n.en, {
+        titleCart: "Cart", cartTitle: "Your shopping cart", loadingCart: "Loading items...",
+        cartEmpty: "Your cart is empty.", pcs: "pcs", remove: "Remove", total: "Total",
+        checkout: "Checkout", orderDone: "Order placed successfully! Thank you for shopping at ElectraStore."
+    });
+
+    function onLanguageChange() { loadCartItems(); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCartItems();
+    });
+
+    async function loadCartItems() {
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const container = document.getElementById('cartItemsList');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+
+        if (!cart.length) {
+            container.innerHTML = `<p style="color: var(--subtext-color); text-align: center; padding: 20px;">${t('cartEmpty')}</p>`;
+            document.getElementById('cartTotal').innerText = '';
+            checkoutBtn.style.display = 'none';
+            return;
+        }
+
+        container.innerHTML = `<p style="color: var(--subtext-color);">${t('loadingCart')}</p>`;
+        let html = '';
+        let total = 0;
+
+        for (let item of cart) {
+            try {
+                const res = await fetch(`/api/products/${item.id}/`);
+                if (res.ok) {
+                    const p = await res.json();
+                    let subtotal = p.price * item.quantity;
+                    total += subtotal;
+
+                    html += `
+                        <div class="cart-item">
+                            <div>
+                                <h3 style="margin: 0 0 5px 0; font-size: 16px;">${p.title}</h3>
+                                <p style="margin: 0; color: var(--subtext-color); font-size: 14px;">${Number(p.price).toLocaleString()} ₽ × ${item.quantity} ${t('pcs')}</p>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <b style="color: var(--primary-color);">${subtotal.toLocaleString()} ₽</b>
+                                <button class="btn-danger" onclick="removeFromCart(${p.id})">${t('remove')}</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error("Ошибка загрузки товара для корзины", e);
+            }
+        }
+
+        container.innerHTML = html;
+        document.getElementById('cartTotal').innerText = `${t('total')}: ${total.toLocaleString()} ₽`;
+        checkoutBtn.style.display = 'block';
+    }
+
+    function removeFromCart(productId) {
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        cart = cart.filter(item => item.id !== productId);
+        localStorage.setItem('cart', JSON.stringify(cart));
+        loadCartItems();
+    }
+
+    function checkout() {
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        if (!cart.length) {
+            showToast(t('cartEmpty'), 'error');
+            return;
+        }
+        showToast(t('orderDone'), 'success');
+        localStorage.removeItem('cart');
+        loadCartItems();
+    }
+</script>
+{% endblock %}

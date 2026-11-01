@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}ElectraStore — Каталог товаров{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-layout {
+        max-width: 1200px;
+        margin: 25px auto;
+        padding: 0 20px;
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 25px;
+    }
+    .sidebar {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        padding: 20px;
+        border-radius: 8px;
+        height: fit-content;
+        box-shadow: var(--shadow);
+    }
+    .filter-group {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .filter-group select, .filter-group input {
+        padding: 8px;
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        border-radius: 6px;
+    }
+    .products-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 20px;
+    }
+    .product-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s;
+    }
+    .product-card:hover { transform: translateY(-3px); }
+    .product-image {
+        height: 160px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+    }
+    .product-image img { max-height: 100%; max-width: 100%; object-fit: contain; }
+    .product-info { padding: 15px; display: flex; flex-direction: column; gap: 8px; flex-grow: 1; }
+    .product-info h3 { margin: 0; font-size: 16px; }
+    .product-info h3 a { text-decoration: none; color: var(--text-color); }
+    .product-info h3 a:hover { color: var(--primary-color); }
+    .product-price { font-size: 18px; font-weight: bold; color: var(--primary-color); }
+    .product-seller { font-size: 12px; color: var(--subtext-color); }
+    .search-bar-inline { display: flex; gap: 8px; flex-grow: 1; max-width: 450px; }
+    .search-bar-inline input {
+        width: 100%; padding: 8px 12px; background: var(--input-bg);
+        border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 15px auto; padding: 0 20px;">
+    <div class="search-bar-inline">
+        <input type="text" id="searchInput" data-i18n-placeholder="searchPh" placeholder="Поиск товаров..." onkeydown="if(event.key==='Enter') applyFilters()">
+        <button class="control-btn" onclick="applyFilters()" data-i18n="searchBtn">Искать</button>
+    </div>
+</div>
+
+<main class="main-layout">
+    <aside class="sidebar">
+        <h3 data-i18n="filtersTitle">Фильтры</h3>
+        <div class="filter-group">
+            <label data-i18n="categoryLabel">Категория</label>
+            <select id="categorySelect" onchange="applyFilters()">
+                <option value="" data-i18n="allCategories">Все категории</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label data-i18n="priceLabel">Цена (₽)</label>
+            <input type="number" id="minPrice" data-i18n-placeholder="minPh" placeholder="От" onchange="applyFilters()">
+            <input type="number" id="maxPrice" data-i18n-placeholder="maxPh" placeholder="До" onchange="applyFilters()">
+        </div>
+    </aside>
+
+    <section>
+        <div class="products-header">
+            <h2 style="margin:0;" data-i18n="catalogTitle">Каталог товаров</h2>
+            <button id="addProductBtn" class="btn-success" style="display:none;" onclick="openModal('addProductModal')" data-i18n="addProductBtn">+ Добавить товар</button>
+        </div>
+        <div id="productsGrid" class="products-grid">
+            <p data-i18n="loading">Загрузка товаров...</p>
+        </div>
+    </section>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.pageTitleKey = 'titleCatalog';
+
+    Object.assign(i18n.ru, {
+        titleCatalog: "Каталог товаров", searchPh: "Поиск товаров...", searchBtn: "Искать",
+        filtersTitle: "Фильтры", categoryLabel: "Категория", allCategories: "Все категории",
+        priceLabel: "Цена (₽)", minPh: "От", maxPh: "До", catalogTitle: "Каталог товаров",
+        addProductBtn: "+ Добавить товар", loading: "Загрузка товаров...", noProducts: "Товары не найдены.",
+        inStock: "В наличии", outOfStock: "Нет в наличии", soldOut: "Распродано", buy: "В корзину"
+    });
+    Object.assign(i18n.en, {
+        titleCatalog: "Product catalog", searchPh: "Search products...", searchBtn: "Search",
+        filtersTitle: "Filters", categoryLabel: "Category", allCategories: "All categories",
+        priceLabel: "Price (₽)", minPh: "From", maxPh: "To", catalogTitle: "Product catalog",
+        addProductBtn: "+ Add product", loading: "Loading products...", noProducts: "No products found.",
+        inStock: "In stock", outOfStock: "Out of stock", soldOut: "Sold out", buy: "Add to cart"
+    });
+
+    let lastProducts = null;
+    function onLanguageChange() { renderProducts(); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadCategories();
+        loadProducts();
+    });
+
+    async function loadCategories() {
+        try {
+            const res = await fetch(`${API_URL}/categories/`);
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : (data.results || []);
+            const catSelect = document.getElementById('categorySelect');
+            const pCatSelect = document.getElementById('pCategory');
+
+            list.forEach(c => {
+                catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                if (pCatSelect) pCatSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+        } catch (e) {
+            console.error("Ошибка загрузки категорий:", e);
+        }
+    }
+
+    async function loadProducts(params = '') {
+        try {
+            const res = await fetch(`${API_URL}/products/?${params}`);
+            const data = await res.json();
+            lastProducts = Array.isArray(data) ? data : (data.results || []);
+            renderProducts();
+        } catch (e) {
+            console.error("Ошибка загрузки товаров:", e);
+        }
+    }
+
+    function renderProducts() {
+        const grid = document.getElementById('productsGrid');
+        if (lastProducts === null) return;
+        const products = lastProducts;
+
+        if (!products.length) {
+            grid.innerHTML = `<p>${t('noProducts')}</p>`;
+            return;
+        }
+
+        const defaultImg = 'https://via.placeholder.com/250x180?text=No+Photo';
+
+        grid.innerHTML = products.map(p => {
+            let imgSrc = p.image_url || p.image;
+            if (!imgSrc || !imgSrc.startsWith('http')) imgSrc = defaultImg;
+            const stock = parseInt(p.stock, 10);
+            const isOutOfStock = isNaN(stock) || stock <= 0;
+
+            return `
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="${imgSrc}" alt="${p.title}" onerror="this.src='${defaultImg}'">
+                    </div>
+                    <div class="product-info">
+                        <h3><a href="/product/${p.id}/">${p.title}</a></h3>
+                        <div class="product-price">${Number(p.price || 0).toLocaleString()} ₽</div>
+                        <div class="product-seller">
+                            ${isOutOfStock
+                                ? `<span style="color: var(--danger-color); font-weight: bold;">${t('outOfStock')}</span>`
+                                : `<span style="color: var(--success-color);">${t('inStock')}: ${stock}</span>`}
+                        </div>
+                        <button class="btn-primary"
+                                style="margin-top:10px; width:100%; ${isOutOfStock ? 'opacity:0.5; cursor:not-allowed;' : ''}"
+                                onclick="addToCart(${p.id})"
+                                ${isOutOfStock ? 'disabled' : ''}>
+                            ${isOutOfStock ? t('soldOut') : t('buy')}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value;
+        const category = document.getElementById('categorySelect').value;
+        const minPrice = document.getElementById('minPrice').value;
+        const maxPrice = document.getElementById('maxPrice').value;
+
+        let query = [];
+        if (search) query.push(`search=${encodeURIComponent(search)}`);
+        if (category) query.push(`category=${encodeURIComponent(category)}`);
+        if (minPrice) query.push(`min_price=${encodeURIComponent(minPrice)}`);
+        if (maxPrice) query.push(`max_price=${encodeURIComponent(maxPrice)}`);
+
+        loadProducts(query.join('&'));
+    }
+</script>
+{% endblock %}
